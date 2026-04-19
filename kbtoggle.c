@@ -13,20 +13,6 @@ static const int kb_ids[] = {10, 11, 12, 13, 19};
 static const int kb_count = (int)(sizeof(kb_ids) / sizeof(kb_ids[0]));
 static int kb_enabled = 1;
 
-static void apply_state(Display *dpy, Window win,
-                        unsigned long col_on, unsigned long col_off)
-{
-    const char *verb = kb_enabled ? "enable" : "disable";
-    char buf[64];
-    for (int i = 0; i < kb_count; i++) {
-        snprintf(buf, sizeof(buf), "xinput %s %d", verb, kb_ids[i]);
-        system(buf);
-    }
-    XSetWindowBackground(dpy, win, kb_enabled ? col_on : col_off);
-    XClearWindow(dpy, win);
-    /* Expose event will follow XClearWindow and redraw the label */
-}
-
 static void draw_label(Display *dpy, Window win, GC gc)
 {
     const char *label = kb_enabled ? "KB ON" : "KB OFF";
@@ -37,6 +23,23 @@ static void draw_label(Display *dpy, Window win, GC gc)
                 WIN_HEIGHT / 2 + 4,
                 label, len);
 }
+
+static void apply_state(Display *dpy, Window win,
+                        unsigned long col_on, unsigned long col_off,
+                        GC gc)
+{
+    const char *verb = kb_enabled ? "enable" : "disable";
+    char buf[64];
+    for (int i = 0; i < kb_count; i++) {
+        snprintf(buf, sizeof(buf), "xinput %s %d", verb, kb_ids[i]);
+        system(buf);
+    }
+    XSetWindowBackground(dpy, win, kb_enabled ? col_on : col_off);
+    XClearWindow(dpy, win);
+    draw_label(dpy, win, gc);
+    XFlush(dpy);
+}
+
 
 int main(void)
 {
@@ -86,7 +89,7 @@ int main(void)
         switch (ev.type) {
         case ButtonPress:
             kb_enabled ^= 1;
-            apply_state(dpy, win, col_on, col_off);
+            apply_state(dpy, win, col_on, col_off, gc);
             break;
         case Expose:
             if (ev.xexpose.count == 0)
